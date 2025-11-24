@@ -191,7 +191,7 @@ public partial struct SceneTrace
 	{
 		IncludePhysicsWorld = true;
 		this.scene = scene;
-		PhysicsTrace = Game.ActiveScene.PhysicsWorld.Trace;
+		PhysicsTrace = scene.PhysicsWorld.Trace;
 		CullMode = 2;
 	}
 
