@@ -1,0 +1,17 @@
+name: Pull Request
+on:
+  pull_request:
+    types: [ labeled ]
+
+jobs:
+  pr-triaged:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'triaged'
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.SBOXBOT_TOKEN }}
+          repository: Facepunch/sbox
+          event-type: pr-triaged
+          client-payload: '{"github": ${{ toJson(github) }}}'

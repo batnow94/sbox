@@ -92,6 +92,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 	{
 		{ "public/.gitignore", ".gitignore" },
 		{ "public/.gitattributes", ".gitattributes" },
+		{ "public/.github/workflows/pull_request.yml", ".github/workflows/pull_request.yml" },
 		{ "public/README.md", "README.md" },
 		{ "public/LICENSE.md", "LICENSE.md" },
 		{ "public/CONTRIBUTING.md", "CONTRIBUTING.md" },
