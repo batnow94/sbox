@@ -67,6 +67,13 @@ public partial class SceneViewWidget : Widget
 		base.OnDestroyed();
 	}
 
+	protected override void OnPaint()
+	{
+		Paint.ClearPen();
+		Paint.SetBrush( Theme.ControlBackground );
+		Paint.DrawRect( LocalRect, Theme.ControlRadius );
+	}
+
 	static int selectionHash = 0;
 
 	[EditorEvent.Frame]
