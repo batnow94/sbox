@@ -1,9 +1,5 @@
 using Microsoft.Extensions.FileSystemGlobbing;
-using System;
 using System.Collections.Concurrent;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using static Facepunch.Constants;
@@ -85,7 +81,12 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		"game/core/shaders/common_samplers.fxc",
 		"game/core/shaders/descriptor_set_support.fxc",
 		"game/core/shaders/system.fxc",
-		"game/core/shaders/tiled_culling.hlsl"
+		"game/core/shaders/tiled_culling.hlsl",
+		"game/core/shaders/skinning_cs.shader",
+		"game/core/shaders/yuv_resolve.shader",
+		"game/core/shaders/sbox_pixel.fxc",
+		"game/core/shaders/sbox_shared.fxc",
+		"game/core/shaders/sbox_vertex.fxc"
 	};
 
 	private static readonly Dictionary<string, string> RepoFilterPathRenames = new()
@@ -164,27 +165,27 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 				return false;
 			}
 
-			// Upload LFS tracked files
-			var lfsPaths = GetTrackedLfsFiles( relativeFilteredPath );
-			if ( lfsPaths is null )
+			// Upload LFS tracked files in the HEAD of the shallow clone
+			var shallowLfsPaths = GetCurrentLfsFiles( relativeFilteredPath );
+			if ( shallowLfsPaths is null )
 			{
 				return false;
 			}
 
-			if ( !TryUploadLfsArtifacts( filteredRepoPath, lfsPaths, remoteBase, dryRun, ref uploadedArtifacts ) )
+			if ( !TryUploadLfsArtifacts( filteredRepoPath, shallowLfsPaths, remoteBase, dryRun, ref uploadedArtifacts ) )
 			{
 				return false;
 			}
 
-			// Get final set of files to keep after filtering out LFS files
-			var pathsToKeep = RepoFileFilter()
-				.GetResultsInFullPath( filteredRepoPath )
-				.Select( fullPath => ToForwardSlash( Path.GetRelativePath( filteredRepoPath, fullPath ) ) )
-				.Where( path => !lfsPaths.Contains( path ) )
-				.ToHashSet( StringComparer.OrdinalIgnoreCase );
+			// Make sure we filter out lfs files that are in the history as well
+			var allLfsPaths = GetAllPublicLfsFiles( relativeFilteredPath );
+			if ( allLfsPaths is null )
+			{
+				return false;
+			}
 
 			// Run git-filter-repo to filter out unwanted paths
-			if ( !RunFilterRepo( relativeFilteredPath, pathsToKeep ) )
+			if ( !RunFilterRepo( relativeFilteredPath, allLfsPaths ) )
 			{
 				return false;
 			}
@@ -200,7 +201,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 			if ( dryRun )
 			{
 				Log.Info( $"Dry run filtered repository commit hash: {publicCommitHash}" );
-				WriteDryRunOutputs( publicCommitHash, uploadedArtifacts, pathsToKeep );
+				WriteDryRunOutputs( publicCommitHash, uploadedArtifacts );
 				return true;
 			}
 
@@ -215,7 +216,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		{
 			try
 			{
-				Thread.Sleep( 250 ); // Give any pending file handles a moment to close
+				Thread.Sleep( 500 ); // Give any pending file handles a moment to close
 				Log.Info( "Cleaning up temporary filtered repository..." );
 				Directory.Delete( filteredRepoPath, true );
 			}
@@ -307,47 +308,40 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		return TryUploadArtifacts( candidates, remoteBase, artifacts, "LFS", skipUpload );
 	}
 
-	private static bool RunFilterRepo( string relativeRepoPath, IReadOnlyCollection<string> pathsToKeep )
+	private bool RunFilterRepo( string relativeRepoPath, IReadOnlyCollection<string> lfsPaths )
 	{
 		Log.Info( "Running git-filter-repo to filter paths..." );
 
-		var filterArgs = new StringBuilder();
-		filterArgs.Append( "filter-repo --force" );
+		var scriptPath = Path.Combine( Directory.GetCurrentDirectory(), "engine", "Tools", "SboxBuild", "Steps", "SyncPublicRepoFilter.py" );
+		if ( !File.Exists( scriptPath ) )
+		{
+			Log.Error( $"Filter script not found: {scriptPath}" );
+			return false;
+		}
 
-		string tempFile = null;
+		var config = new FilterConfigData
+		{
+			IncludeGlobs = RepoFilterPathIncludeGlobs,
+			ExcludeGlobs = RepoFilterPathExcludeGlobs,
+			WhitelistedShaders = RepoFilterShaderWhitelistGlobs,
+			PathRenames = RepoFilterPathRenames.ToDictionary( pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase ),
+			LfsPaths = lfsPaths
+				.Select( ToForwardSlash )
+				.Distinct( StringComparer.OrdinalIgnoreCase )
+				.ToList()
+		};
+
+		string configPath = null;
 		try
 		{
-			if ( pathsToKeep is not null && pathsToKeep.Count > 0 )
-			{
-				tempFile = Path.GetTempFileName();
-				var normalizedPaths = new List<string>( pathsToKeep.Count );
-				foreach ( var path in pathsToKeep )
-				{
-					normalizedPaths.Add( path.Replace( '\\', '/' ) );
-				}
+			configPath = Path.Combine( Path.GetTempPath(), $"sbox-filter-config-{Guid.NewGuid():N}.json" );
+			var configJson = JsonSerializer.Serialize( config );
+			File.WriteAllText( configPath, configJson );
 
-				File.WriteAllLines( tempFile, normalizedPaths );
-				filterArgs.Append( $" --paths-from-file \"{tempFile}\"" );
-			}
+			var pythonExecutable = GetPythonExecutable();
+			var arguments = $"\"{scriptPath}\" --config \"{configPath}\"";
 
-			foreach ( var rename in RepoFilterPathRenames )
-			{
-				filterArgs.Append( $" --path-rename {rename.Key}:{rename.Value}" );
-			}
-
-			// Reference the original commit, and mark our baseline commit
-			var commitCallback = """
-				if not commit.parents:
-					commit.message = b'Open source release\n\nThis commit imports the C# engine code and game files, excluding C++ source code.'
-					commit.author_name = b's&box team'
-					commit.author_email = b'sboxbot@facepunch.com'
-					commit.committer_name = b's&box team'
-					commit.committer_email = b'sboxbot@facepunch.com'
-					commit.message += b'\n\n[Source-Commit: ' + commit.original_id + b']\n'
-				""";
-			filterArgs.Append( $" --commit-callback \"{commitCallback}\"" );
-
-			if ( Utility.RunProcess( "git", filterArgs.ToString(), relativeRepoPath ) )
+			if ( Utility.RunProcess( pythonExecutable, arguments, relativeRepoPath ) )
 			{
 				return true;
 			}
@@ -357,9 +351,9 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		}
 		finally
 		{
-			if ( tempFile is not null && File.Exists( tempFile ) )
+			if ( configPath is not null && File.Exists( configPath ) )
 			{
-				File.Delete( tempFile );
+				File.Delete( configPath );
 			}
 		}
 	}
@@ -416,7 +410,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		return publicCommitHash;
 	}
 
-	private static HashSet<string> GetTrackedLfsFiles( string relativeRepoPath )
+	private static HashSet<string> GetCurrentLfsFiles( string relativeRepoPath )
 	{
 		var trackedFiles = new HashSet<string>( StringComparer.OrdinalIgnoreCase );
 		if ( !Utility.RunProcess( "git", "lfs ls-files --name-only", relativeRepoPath, onDataReceived: ( _, e ) =>
@@ -431,19 +425,44 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 			return null;
 		}
 
-		Log.Info( trackedFiles.Count == 0
-			? "No LFS tracked files eligible for upload"
-			: $"Found {trackedFiles.Count} LFS tracked files eligible for upload" );
+		return trackedFiles;
+	}
+
+	private static HashSet<string> GetAllPublicLfsFiles( string relativeRepoPath )
+	{
+		// Get base set
+		var trackedFiles = GetCurrentLfsFiles( relativeRepoPath );
+
+		// Extend with all lfs files from first commit to HEAD
+		var firstCommitHash = string.Empty;
+		if ( !Utility.RunProcess( "git", "rev-list --max-parents=0 HEAD", relativeRepoPath, onDataReceived: (_, e) =>
+		{
+			if ( !string.IsNullOrWhiteSpace( e.Data ) )
+			{
+				firstCommitHash = e.Data.Trim();
+			}
+		} ) )
+		{
+			Log.Error( "Failed find first commit" );
+			return null;
+		}
+
+		if ( !Utility.RunProcess( "git", $"lfs ls-files --name-only {firstCommitHash} HEAD", relativeRepoPath, onDataReceived: (_, e) =>
+		{
+			if ( !string.IsNullOrWhiteSpace( e.Data ) )
+			{
+				trackedFiles.Add( ToForwardSlash( e.Data.Trim() ) );
+			}
+		} ) )
+		{
+			Log.Error( "Failed to list LFS tracked files" );
+			return null;
+		}
 
 		return trackedFiles;
 	}
 
-	private static string ToForwardSlash( string path )
-	{
-		return path.Replace( '\\', '/' );
-	}
-
-	private void WriteDryRunOutputs( string commitHash, IReadOnlyList<ArtifactFileInfo> artifacts, IReadOnlyCollection<string> pathsToKeep )
+	private void WriteDryRunOutputs( string commitHash, IReadOnlyList<ArtifactFileInfo> artifacts )
 	{
 		var workingDirectory = Directory.GetCurrentDirectory();
 		var manifestPath = Path.Combine( workingDirectory, "public-sync-manifest.dryrun.json" );
@@ -457,12 +476,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		var manifestJson = JsonSerializer.Serialize( manifest, new JsonSerializerOptions { WriteIndented = true } );
 		File.WriteAllText( manifestPath, manifestJson );
 
-		var pathsOutputPath = Path.Combine( workingDirectory, "public-sync-paths.dryrun.txt" );
-		var pathsSequence = pathsToKeep ?? Array.Empty<string>();
-		File.WriteAllLines( pathsOutputPath, pathsSequence );
-
 		Log.Info( $"Dry run manifest written to {manifestPath}" );
-		Log.Info( $"Dry run paths list written to {pathsOutputPath}" );
 	}
 
 	private static bool TryUploadArtifacts( IReadOnlyCollection<(string RepoPath, string AbsolutePath)> candidates, string remoteBase, List<ArtifactFileInfo> artifacts, string artifactLabel, bool skipUpload )
@@ -603,5 +617,44 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		}
 
 		return $":s3,bucket={r2Bucket},provider=Cloudflare,access_key_id={r2AccessKeyId},secret_access_key={r2SecretAccessKey},endpoint='{r2Endpoint}':";
+	}
+
+	private static string ToForwardSlash( string path )
+	{
+		return path.Replace( '\\', '/' );
+	}
+
+	private static string GetPythonExecutable()
+	{
+		var overridePath = Environment.GetEnvironmentVariable( "PYTHON" );
+		if ( !string.IsNullOrWhiteSpace( overridePath ) )
+		{
+			return overridePath;
+		}
+
+		if ( OperatingSystem.IsWindows() )
+		{
+			return "python";
+		}
+
+		return "python3";
+	}
+
+	private sealed class FilterConfigData
+	{
+		[JsonPropertyName( "include_globs" )]
+		public string[] IncludeGlobs { get; init; }
+
+		[JsonPropertyName( "exclude_globs" )]
+		public string[] ExcludeGlobs { get; init; }
+
+		[JsonPropertyName( "whitelisted_shaders" )]
+		public string[] WhitelistedShaders { get; init; }
+
+		[JsonPropertyName( "path_renames" )]
+		public Dictionary<string, string> PathRenames { get; init; }
+
+		[JsonPropertyName( "lfs_paths" )]
+		public List<string> LfsPaths { get; init; }
 	}
 }
