@@ -436,7 +436,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 
 		// Extend with all lfs files from first commit to HEAD
 		var firstCommitHash = string.Empty;
-		if ( !Utility.RunProcess( "git", "rev-list --max-parents=0 HEAD", relativeRepoPath, onDataReceived: (_, e) =>
+		if ( !Utility.RunProcess( "git", "rev-list --max-parents=0 HEAD", relativeRepoPath, onDataReceived: ( _, e ) =>
 		{
 			if ( !string.IsNullOrWhiteSpace( e.Data ) )
 			{
@@ -448,7 +448,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 			return null;
 		}
 
-		if ( !Utility.RunProcess( "git", $"lfs ls-files --name-only {firstCommitHash} HEAD", relativeRepoPath, onDataReceived: (_, e) =>
+		if ( !Utility.RunProcess( "git", $"lfs ls-files --name-only {firstCommitHash} HEAD", relativeRepoPath, onDataReceived: ( _, e ) =>
 		{
 			if ( !string.IsNullOrWhiteSpace( e.Data ) )
 			{
