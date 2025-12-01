@@ -436,7 +436,7 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 			}
 		}
 
-		if ( !Utility.RunProcess( "git", $"push public {PUBLIC_BRANCH} --force", relativeRepoPath ) )
+		if ( !Utility.RunProcess( "git", $"push public {PUBLIC_BRANCH}", relativeRepoPath ) )
 		{
 			Log.Error( "Failed to push to public repository" );
 			return null;
