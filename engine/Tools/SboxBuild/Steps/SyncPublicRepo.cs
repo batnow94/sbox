@@ -152,8 +152,14 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 			var uploadedArtifacts = new HashSet<ArtifactFileInfo>();
 			var uploadedArtifactHashes = new HashSet<string>( StringComparer.OrdinalIgnoreCase );
 
-			// Upload build artifacts from original repository
-			if ( !TryUploadBuildArtifacts( repositoryRoot, remoteBase, dryRun, ref uploadedArtifacts, uploadedArtifactHashes ) )
+			// Upload windows binaries
+			if ( !TryUploadBuildArtifacts( repositoryRoot, remoteBase, "win64", dryRun, ref uploadedArtifacts, uploadedArtifactHashes ) )
+			{
+				return false;
+			}
+
+			// Upload linux binaries
+			if ( !TryUploadBuildArtifacts( repositoryRoot, remoteBase, "linuxsteamrt64", dryRun, ref uploadedArtifacts, uploadedArtifactHashes ) )
 			{
 				return false;
 			}
@@ -263,9 +269,9 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		return false;
 	}
 
-	private static bool TryUploadBuildArtifacts( string repositoryRoot, string remoteBase, bool skipUpload, ref HashSet<ArtifactFileInfo> artifacts, HashSet<string> uploadedHashes )
+	private static bool TryUploadBuildArtifacts( string repositoryRoot, string remoteBase, string platform, bool skipUpload, ref HashSet<ArtifactFileInfo> artifacts, HashSet<string> uploadedHashes )
 	{
-		var buildArtifactsRoot = Path.Combine( repositoryRoot, "game", "bin", "win64" );
+		var buildArtifactsRoot = Path.Combine( repositoryRoot, "game", "bin", platform );
 		if ( !Directory.Exists( buildArtifactsRoot ) )
 		{
 			Log.Info( $"Build artifacts directory not found, skipping upload: {buildArtifactsRoot}" );
