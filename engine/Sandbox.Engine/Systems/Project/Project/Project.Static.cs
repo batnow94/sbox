@@ -159,10 +159,7 @@ public partial class Project
 				if ( !project.Active ) continue;
 
 				// Don't put menu project in everyone's slns
-				if ( Current is not null )
-				{
-					if ( project.Config.Ident == "menu" && Current.Config.Ident != "menu" ) continue;
-				}
+				if ( project.Config.Ident == "menu" && Current?.Config?.Ident != "menu" ) continue;
 
 				await project.GenerateProject( generator );
 			}
