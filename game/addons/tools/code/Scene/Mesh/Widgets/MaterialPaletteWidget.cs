@@ -502,21 +502,21 @@ public class MaterialPaletteWidget : Widget
 			}
 			else
 			{
-				var baseFill = Theme.ControlBackground;
-				var baseLine = Color.Transparent;
-				var iconColor = Theme.TextLight;
+				var baseFill = Theme.Text.WithAlpha( 0.01f );
+				var baseLine = Theme.Text.WithAlpha( 0.1f );
+				var iconColor = Theme.Text.WithAlpha( 0.1f );
 
 				if ( Paint.HasMouseOver )
 				{
-					baseFill = Theme.ControlBackground;
-					baseLine = Color.Transparent;
-					iconColor = Theme.TextLight.Lighten( 0.8f );
+					baseFill = Theme.Text.WithAlpha( 0.04f );
+					baseLine = Theme.Text.WithAlpha( 0.2f );
+					iconColor = Theme.Text.WithAlpha( 0.2f );
 				}
 				else
 				{
-					baseFill = Theme.ControlBackground;
-					baseLine = Color.Transparent;
-					iconColor = Theme.TextLight;
+					baseFill = Theme.Text.WithAlpha( 0.01f );
+					baseLine = Theme.Text.WithAlpha( 0.1f );
+					iconColor = Theme.Text.WithAlpha( 0.1f );
 				}
 
 				if ( _isValidDropHover )

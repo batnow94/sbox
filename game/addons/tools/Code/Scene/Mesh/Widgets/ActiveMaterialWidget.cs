@@ -16,19 +16,18 @@ class ActiveMaterialWidget : ControlWidget
 
 		ToolTip = "";
 
-		_paletteStrip = Layout.Add( new MaterialPaletteWidget() );
-		_paletteStrip.MaterialClicked += OnPaletteMaterialClicked;
-		_paletteStrip.FixedHeight = FixedHeight - 8;
-		_paletteStrip.FixedWidth = 64;
-		_paletteStrip.GetActiveMaterial = () => _materialWidget.Material;
-
-		Layout.AddSpacingCell( 1 );
-
 		_materialWidget = Layout.Add( new MaterialWidget() );
 		_materialWidget.ToolTip = "Active Material";
 		_materialWidget.FixedSize = FixedHeight - 22;
 		_materialWidget.Cursor = CursorShape.Finger;
 
+		Layout.AddSpacingCell( 1 );
+
+		_paletteStrip = Layout.Add( new MaterialPaletteWidget() );
+		_paletteStrip.MaterialClicked += OnPaletteMaterialClicked;
+		_paletteStrip.FixedHeight = FixedHeight - 8;
+		_paletteStrip.FixedWidth = 64;
+		_paletteStrip.GetActiveMaterial = () => _materialWidget.Material;
 
 		Frame();
 	}
@@ -98,7 +97,7 @@ class ActiveMaterialWidget : ControlWidget
 		base.OnMouseClick( e );
 
 		// If we are selecting the Material Widget continue. (Probably better way of doing this)
-		if ( _materialWidget.ContentRect.IsInside( e.LocalPosition ) )
+		if ( !_materialWidget.ContentRect.IsInside( e.LocalPosition ) )
 			return;
 
 		if ( ReadOnly ) return;
