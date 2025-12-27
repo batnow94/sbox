@@ -13,6 +13,7 @@ public sealed partial class PolygonMesh : IJsonConvert
 	private readonly List<FaceHandle> _triangleFaces = new();
 	private readonly List<int> _meshIndices = new();
 	private readonly List<Vector3> _meshVertices = new();
+	private readonly List<byte> _meshTriangleMaterials = new();
 	private readonly Dictionary<FaceHandle, FaceMesh> _meshFaces = new();
 	private readonly Dictionary<int, Material> _materialsById = new();
 	private readonly Dictionary<string, int> _materialIdsByName = new();
@@ -41,6 +42,7 @@ public sealed partial class PolygonMesh : IJsonConvert
 		public List<int> Indices { get; init; } = new();
 		public List<float> UvDensity { get; set; } = new();
 		public Material Material { get; set; }
+		public int Index { get; set; }
 	}
 
 	private struct FaceData
@@ -3184,7 +3186,9 @@ public sealed partial class PolygonMesh : IJsonConvert
 		_meshIndices.Clear();
 		_meshVertices.Clear();
 		_meshFaces.Clear();
+		_meshTriangleMaterials.Clear();
 
+		var builder = Model.Builder;
 		var submeshes = new Dictionary<int, Submesh>();
 
 		foreach ( var hFace in Topology.FaceHandles )
@@ -3196,22 +3200,24 @@ public sealed partial class PolygonMesh : IJsonConvert
 				submesh = new()
 				{
 					Material = material,
+					Index = submeshes.Count,
 				};
 
 				submeshes.Add( materialId, submesh );
+
+				builder.AddSurface( material?.Surface );
 			}
 
 			TriangulateFace( hFace, submesh );
 		}
 
-		var builder = Model.Builder;
-
 		if ( _meshVertices.Count >= 3 && _meshIndices.Count >= 3 )
 		{
 			builder.AddCollisionHull( _meshVertices );
-			builder.AddCollisionMesh( _meshVertices, _meshIndices );
+			builder.AddCollisionMesh( _meshVertices, _meshIndices, _meshTriangleMaterials );
 			builder.AddTraceMesh( _meshVertices, _meshIndices );
 		}
+
 
 		foreach ( var submesh in submeshes.Values )
 		{
@@ -4478,6 +4484,7 @@ public sealed partial class PolygonMesh : IJsonConvert
 			triangles.Add( c );
 
 			_triangleFaces.Add( hFace );
+			_meshTriangleMaterials.Add( (byte)submesh.Index );
 
 			_meshIndices.Add( startCollisionVertex + faceIndices[triangle] );
 			_meshIndices.Add( startCollisionVertex + faceIndices[triangle + 1] );
