@@ -588,6 +588,8 @@ internal partial class GameInstanceDll : Engine.IGameInstanceDll
 				newInstance = new GameInstance( ident, flags );
 			}
 
+			using var _ = GlobalContext.GameScope();
+
 			ResetEnvironment();
 
 			NativeErrorReporter.Breadcrumb( true, "game", $"Loading game package {ident}" );
