@@ -900,9 +900,11 @@ public static partial class EditorUtility
 		if ( !go.IsValid() )
 			return;
 
-		using ( SceneEditorSession.Active.UndoScope( $"Selected {go}" ).Push() )
+		var session = SceneEditorSession.Resolve( go );
+		using var scene = session.Scene.Push();
+		using ( session.UndoScope( $"Selected {go}" ).Push() )
 		{
-			SceneEditorSession.Active?.Selection.Set( go );
+			session.Selection.Set( go );
 		}
 	}
 }
