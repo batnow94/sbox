@@ -293,7 +293,7 @@ namespace Sandbox
 
 			// HERE'S WHERE WE SANITY CHECK EVERYTHING TO PREVENT FUCKUPS
 
-			var memoryRequired = ImageLoader.GetMemRequired( _config.m_nWidth, _config.m_nHeight, _config.m_nDepth, _config.m_nNumMipLevels, _config.m_nImageFormat ) * faces;
+			var memoryRequired = ImageLoader.GetMemRequired( _config.m_nWidth, _config.m_nHeight, _config.m_nDepth, _config.m_nImageFormat, false ) * faces;
 			if ( dataLength != memoryRequired && dataLength != memoryRequiredWithMips )
 				throw new Exception( $"{dataLength} is wrong for this texture! {memoryRequired:n0} bytes are required (or {memoryRequiredWithMips:n0} with mips)! You sent {dataLength:n0} bytes!" );
 
