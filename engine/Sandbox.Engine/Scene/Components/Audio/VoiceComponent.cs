@@ -38,13 +38,16 @@ public class Voice : Component
 	[Description( "Play the sound of your own voice" )]
 	[Property] public bool Loopback { get; set; } = false;
 
-	[Property, Group( "Viseme" )]
+	[Property, ToggleGroup( "LipSync", Label = "Lip Sync" )]
+	public bool LipSync { get; set; } = true;
+
+	[Property, Group( "LipSync" )]
 	public SkinnedModelRenderer Renderer { get; set; }
 
-	[Property, Group( "Viseme" ), Range( 0, 5 )]
+	[Property, Group( "LipSync" ), Range( 0, 5 )]
 	public float MorphScale { get; set; } = 3.0f;
 
-	[Property, Group( "Viseme" ), Range( 0, 1 )]
+	[Property, Group( "LipSync" ), Range( 0, 1 )]
 	public float MorphSmoothTime { get; set; } = 0.1f;
 
 	/// <summary>
@@ -241,6 +244,14 @@ public class Voice : Component
 		FadeMorphs();
 		UpdateSound();
 
+		// Stop the sound if we haven't received voice data for a while
+		// This also stops LipSync processing which runs per-frame
+		if ( sound.IsValid() && LastPlayed > 1.0f )
+		{
+			sound.Dispose();
+			sound = null;
+		}
+
 		if ( !VoiceManager.IsValid )
 			return;
 
@@ -406,7 +417,8 @@ public class Voice : Component
 				sound.TargetMixer = TargetMixer;
 				sound.Distance = Distance;
 				sound.Falloff = Falloff;
-				sound.LipSync.Enabled = true;
+				sound.LipSync.Enabled = LipSync && Renderer.IsValid();
+				sound.IsVoice = true;
 			}
 
 			soundStream.WriteData( samples.Span );
