@@ -121,6 +121,7 @@ partial class EdgeTool
 
 					CreateButton( "Bevel", "straighten", "mesh.edge-bevel", Bevel, CanBevel(), row.Layout );
 					CreateButton( "Edge Cut Tool", "content_cut", "mesh.edge-cut-tool", OpenEdgeCutTool, true, row.Layout );
+					CreateButton( "Edge Arch", "rounded_corner", "mesh.edge-arch-tool", OpenEdgeArchTool, CanArch(), row.Layout );
 
 					row.Layout.AddStretchCell();
 
@@ -777,6 +778,51 @@ partial class EdgeTool
 		void DefaultNormals()
 		{
 			SetNormals( PolygonMesh.EdgeSmoothMode.Default );
+		}
+		private bool CanArch()
+		{
+			return _edges.Any( x => x.IsOpen );
+		}
+
+		[Shortcut( "mesh.edge-arch-tool", "Y", typeof( SceneViewWidget ) )]
+		void OpenEdgeArchTool()
+		{
+			if ( !CanArch() )
+				return;
+
+			var edgeGroups = new List<EdgeArchEdges>();
+
+			foreach ( var group in _edgeGroups )
+			{
+				var component = group.Key;
+				var mesh = component.Mesh;
+
+				var originalMesh = new PolygonMesh();
+				originalMesh.Transform = mesh.Transform;
+				originalMesh.MergeMesh( mesh, Transform.Zero, out _, out _, out _ );
+
+				var openEdges = group
+					.Where( x => x.IsOpen )
+					.Select( x => x.Handle.Index )
+					.ToList();
+
+				if ( openEdges.Count > 0 )
+				{
+					edgeGroups.Add( new EdgeArchEdges
+					{
+						Component = component,
+						Mesh = originalMesh,
+						Edges = openEdges
+					} );
+				}
+			}
+
+			if ( edgeGroups.Count == 0 )
+				return;
+
+			var tool = new EdgeArchTool( edgeGroups.ToArray() );
+			tool.Manager = _tool.Manager;
+			_tool.CurrentTool = tool;
 		}
 	}
 }

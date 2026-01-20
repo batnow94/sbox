@@ -18,8 +18,11 @@ partial class VertexTool
 
 		public enum MergeRange
 		{
+			[Icon( "all_inclusive" ), Description( "Merge all vertices regardless of distance." )]
 			Infinite,
+			[Icon( "grid_on" ), Description( "Merge vertices within the current grid spacing." )]
 			Grid,
+			[Icon( "straighten" ), Description( "Merge vertices within a fixed distance." )]
 			Fixed,
 		}
 
