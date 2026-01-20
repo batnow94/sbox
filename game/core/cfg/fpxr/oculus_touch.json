@@ -56,7 +56,7 @@
       "name": "hand_pose",
       "localized_name": "Hand Pose",
       "type": "pose",
-      "path": "/input/grip/pose"
+      "path": "/input/aim/pose"
     },
     {
       "name": "vibration",
