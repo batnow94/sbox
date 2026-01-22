@@ -219,11 +219,16 @@ partial class TextureTool
 			var width = material.Attributes.GetInt( "WorldMappingWidth" );
 			var height = material.Attributes.GetInt( "WorldMappingHeight" );
 			var texture = material.FirstTexture;
+
 			if ( texture != null )
 			{
-				textureSize = texture.Size;
-				if ( width > 0 ) textureSize.x = width / 0.25f;
-				if ( height > 0 ) textureSize.y = height / 0.25f;
+				textureSize.x = width > 0 ? width : (texture.Size.x * 0.25f);
+				textureSize.y = height > 0 ? height : (texture.Size.y * 0.25f);
+			}
+			else
+			{
+				if ( width > 0 ) textureSize.x = width;
+				if ( height > 0 ) textureSize.y = height;
 			}
 
 			return textureSize;
