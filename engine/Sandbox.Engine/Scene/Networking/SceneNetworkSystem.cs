@@ -740,7 +740,7 @@ public partial class SceneNetworkSystem : GameNetworkSystem
 
 			foreach ( var no in scene.networkedObjects )
 			{
-				no.ClearConnections();
+				no.OnHostChanged( previousHost, newHost );
 			}
 		}
 

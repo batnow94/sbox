@@ -527,7 +527,7 @@ public partial class GameObject
 		}
 
 		/// <summary>
-		/// Is this object networked
+		/// Is this object networked?
 		/// </summary>
 		public bool Active => go._net is not null;
 
@@ -537,7 +537,7 @@ public partial class GameObject
 		public GameObject RootGameObject => go;
 
 		/// <summary>
-		/// Are we the owner of this network object
+		/// Are we the owner of this network object?
 		/// </summary>
 		[ActionGraphInclude]
 		public bool IsOwner => OwnerId == Connection.Local.Id;
@@ -554,13 +554,13 @@ public partial class GameObject
 		public bool IsCreator => CreatorId == Connection.Local.Id;
 
 		/// <summary>
-		/// The Id of the create of this object
+		/// The Id of the creator of this object
 		/// </summary>
 		public Guid CreatorId => go._net?.Creator ?? Guid.Empty;
 
 		/// <summary>
-		/// Is this object a network proxy. A network proxy is a network object that is not being simulated on the local pc.
-		/// This means it's either owned by no-one and is being simulated by the host, or owned by another client.
+		/// Is this object a network proxy? A network proxy is a network object that is not being simulated on the local pc.
+		/// This means it's either owned by no-one and is being simulated by the host or owned by another client.
 		/// </summary>
 		[ActionGraphInclude]
 		public bool IsProxy => go._net?.IsProxy ?? false;

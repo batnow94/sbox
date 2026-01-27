@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Sandbox.Network;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
@@ -19,13 +20,13 @@ internal sealed partial class NetworkObject : IValid, IDeltaSnapshot
 	/// <summary>
 	/// The <see cref="Guid"/> of the connection that created this.
 	/// </summary>
-	public Guid Creator { get; set; }
+	public Guid Creator { get; private set; }
 
 	public bool IsValid => GameObject.IsValid();
 
 	/// <summary>
-	/// If true then this object is spawning on the host, on behalf of another client. While it's
-	/// doing this we're going to act like the host is the owner.. so that anything that is called in
+	/// If true, then this object is spawning on the host, on behalf of another client. While it's
+	/// doing this, we're going to act like the host is the owner... so that anything called in
 	/// OnAwake will think we're not a proxy - until we've fully handed it off.
 	/// </summary>
 	bool _isNetworkSpawning;
@@ -51,26 +52,27 @@ internal sealed partial class NetworkObject : IValid, IDeltaSnapshot
 	/// <summary>
 	/// Are we the owner of this networked object?
 	/// </summary>
-	public bool IsOwner => Owner == Connection.Local.Id;
+	public bool IsOwner { get; private set; }
 
 	/// <summary>
 	/// Is this networked object unowned?
 	/// </summary>
-	public bool IsUnowned => Owner == Guid.Empty;
+	public bool IsUnowned { get; private set; }
 
 	/// <summary>
-	/// This is this a proxy if we don't own this networked object.
+	/// This is a proxy if we don't own this networked object.
 	/// </summary>
-	public bool IsProxy
-	{
-		get
-		{
-			if ( _isNetworkSpawning ) return false;
-			if ( IsOwner ) return false;
-			if ( IsUnowned && Networking.IsHost ) return false;
+	public bool IsProxy { get; private set; }
 
-			return true;
+	private void UpdateIsProxy()
+	{
+		if ( _isNetworkSpawning || IsOwner || (IsUnowned && Networking.IsHost) )
+		{
+			IsProxy = false;
+			return;
 		}
+
+		IsProxy = true;
 	}
 
 	/// <summary>
@@ -125,9 +127,13 @@ internal sealed partial class NetworkObject : IValid, IDeltaSnapshot
 		// host spawning this object for other connections, then you probably want to act
 		// like the owner of it while OnAwake/OnEnabled is being called.
 		_isNetworkSpawning = true;
+		UpdateIsProxy();
+
 		GameObject.Enabled = enable;
 		CallNetworkSpawn( owner );
+
 		_isNetworkSpawning = false;
+		UpdateIsProxy();
 
 		// Tell the world that we're here
 		BroadcastNetworkSpawn( owner );
@@ -379,9 +385,18 @@ internal sealed partial class NetworkObject : IValid, IDeltaSnapshot
 	}
 
 	/// <summary>
+	/// Called when the host has changed.
+	/// </summary>
+	internal void OnHostChanged( Connection previousHost, Connection newHost )
+	{
+		ClearConnections();
+		UpdateIsProxy();
+	}
+
+	/// <summary>
 	/// Clear all connections associated with the local snapshot state.
 	/// </summary>
-	internal void ClearConnections()
+	private void ClearConnections()
 	{
 		LocalSnapshotState.ClearConnections();
 	}
@@ -793,18 +808,26 @@ internal sealed partial class NetworkObject : IValid, IDeltaSnapshot
 
 	/// <summary>
 	/// Whether the specified <see cref="Connection"/> has control over this networked object. A connection
-	/// has control if the object is unowned and they are the host, or if they own it directly.
+	/// has control if the object is unowned, and they are the host, or if they own it directly.
 	/// </summary>
 	internal bool HasControl( Connection c )
 	{
 		if ( IsUnowned )
 			return c.IsHost;
 
+		if ( c == Connection.Local )
+			return IsOwner;
+
 		return c.Id == Owner;
 	}
 
 	void OnOwnerChanged( Guid newOwner, Guid prevOwner )
 	{
+		IsUnowned = newOwner == Guid.Empty;
+		IsOwner = newOwner == Connection.Local.Id;
+
+		UpdateIsProxy();
+
 		var wasOwner = (prevOwner == Connection.Local.Id) || (prevOwner == Guid.Empty && Networking.IsHost);
 		var isOwner = (newOwner == Connection.Local.Id) || (newOwner == Guid.Empty && Networking.IsHost);
 
