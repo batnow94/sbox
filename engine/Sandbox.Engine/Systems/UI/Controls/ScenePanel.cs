@@ -128,7 +128,6 @@ namespace Sandbox.UI
 				}
 				else if ( RenderScene.IsValid() && RenderScene.Camera.IsValid() )
 				{
-					RenderScene.PreCameraRender();
 					RenderScene.Camera.RenderToTexture( RenderTexture );
 				}
 			}
