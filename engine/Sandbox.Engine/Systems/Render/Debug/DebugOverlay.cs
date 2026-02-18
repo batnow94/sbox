@@ -49,6 +49,12 @@ internal static partial class DebugOverlay
 		Vector2 pos = new Vector2( 100, 130 );
 		var activeScene = Application.GetActiveScene();
 
+		// Show current render debug mode on screen when not default
+		if ( ToolsVisualization.mat_toolsvis != SceneCameraDebugMode.Normal )
+		{
+			DebugOverlay.ToolsVisualization.Draw( ref pos );
+		}
+
 		if ( overlay_network_calls == 1 )
 		{
 			DebugOverlay.NetworkCalls.Draw( ref pos );
