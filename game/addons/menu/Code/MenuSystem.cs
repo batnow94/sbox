@@ -20,9 +20,6 @@ public partial class MenuSystem : IMenuSystem
 
 	public Action<Package> OnPackageSelected { get; set; }
 
-	[MenuConVar( "show_version_overlay" )]
-	public static bool ShowOverlay { get; set; } = true;
-
 	public void Init()
 	{
 		Instance = this;

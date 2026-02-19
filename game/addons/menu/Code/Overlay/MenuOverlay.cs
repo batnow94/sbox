@@ -33,11 +33,6 @@ public partial class MenuOverlay : RootPanel
 		PopupCanvasTopLeft = Add.Panel( "popup_canvas_topleft" );
 		PopupCanvasBottomRight = Add.Panel( "popup_canvas_bottomright" );
 
-		if ( !Application.IsEditor )
-		{
-			AddChild<VersionOverlay>();
-		}
-
 		AddChild<LoadingOverlay>();
 		AddChild<MicOverlay>();
 	}
