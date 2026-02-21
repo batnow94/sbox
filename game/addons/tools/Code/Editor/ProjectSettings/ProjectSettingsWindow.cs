@@ -361,12 +361,16 @@ internal sealed class ProjectSettingsWindow : Window
 		Scroller.Canvas.Layout.AddStretchCell();
 	}
 
+	private static ProjectSettingsWindow _instance;
+
 	public static async void OpenForProject( Project project )
 	{
-		// Try to load the project first
+		if ( _instance.IsValid() )
+			_instance.Close();
+
 		await Package.FetchAsync( project.Config.FullIdent, false );
 
-		var window = new ProjectSettingsWindow( project );
+		_instance = new ProjectSettingsWindow( project );
 	}
 
 	protected override bool OnClose()
