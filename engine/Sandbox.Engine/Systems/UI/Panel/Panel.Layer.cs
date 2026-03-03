@@ -2,29 +2,11 @@ using Sandbox.Rendering;
 
 namespace Sandbox.UI;
 
-internal class PanelLayer : IDisposable
-{
-	public Vector2 Size { get; set; }
-	public Texture Texture { get; set; }
-
-	public PanelLayer( Vector2 size )
-	{
-		Size = size;
-		Texture = Texture.CreateRenderTarget()
-								.WithSize( Size )
-								.Create();
-	}
-
-	public void Dispose()
-	{
-		Texture?.Dispose();
-		Texture = null;
-	}
-}
-
 public partial class Panel
 {
-	PanelLayer PanelLayer;
+	string PanelLayerRTName => field ??= $"PanelLayer.{GetHashCode()}";
+
+	Vector2? _panelLayerSize;
 
 	bool NeedsLayer( Styles styles )
 	{
@@ -44,19 +26,11 @@ public partial class Panel
 			if ( size.x <= 1 ) return;
 			if ( size.y <= 1 ) return;
 
-			// TODO - add blur size margin
-			if ( PanelLayer != null && PanelLayer.Size == size )
-				return;
-
-			PanelLayer?.Dispose();
-			PanelLayer = null;
-
-			PanelLayer = new PanelLayer( size );
+			_panelLayerSize = size;
 		}
 		else
 		{
-			PanelLayer?.Dispose();
-			PanelLayer = null;
+			_panelLayerSize = null;
 		}
 	}
 
@@ -65,8 +39,8 @@ public partial class Panel
 	/// </summary>
 	internal void PushLayer( PanelRenderer render )
 	{
-		if ( PanelLayer == null ) return;
-		if ( ComputedStyle == null ) return;
+		if ( _panelLayerSize is null ) return;
+		if ( ComputedStyle is null ) return;
 		if ( !IsVisible ) return;
 
 		// we need to push a matrix to offset the panel position,
@@ -74,7 +48,10 @@ public partial class Panel
 		var mat = render.Matrix.Inverted;
 		mat *= Matrix.CreateTranslation( Box.RectOuter.Position * -1.0f );
 
-		render.PushLayer( this, PanelLayer.Texture, mat );
+		// get an RT handle for this panel layer
+		var handle = CommandList.GetRenderTarget( PanelLayerRTName, (int)_panelLayerSize?.x, (int)_panelLayerSize?.y, depthFormat: ImageFormat.None );
+
+		render.PushLayer( this, handle, mat );
 	}
 
 	/// <summary>
@@ -83,8 +60,8 @@ public partial class Panel
 	/// </summary>
 	internal void BuildLayerPopCommands( PanelRenderer render, RenderTarget defaultRenderTarget )
 	{
-		if ( PanelLayer == null ) return;
-		if ( ComputedStyle == null ) return;
+		if ( _panelLayerSize is null ) return;
+		if ( ComputedStyle is null ) return;
 		if ( !IsVisible ) return;
 
 		LayerCommandList.Reset();
@@ -105,7 +82,7 @@ public partial class Panel
 		//
 		// Shared attributes
 		//
-		attributes.Set( "Texture", PanelLayer.Texture );
+		attributes.Set( "Texture", new RenderTargetHandle { Name = PanelLayerRTName }.ColorTexture );
 		attributes.Set( "BoxPosition", Box.RectOuter.Position );
 		attributes.Set( "BoxSize", Box.RectOuter.Size );
 
@@ -268,5 +245,5 @@ public partial class Panel
 	/// <summary>
 	/// Returns true if this panel has a layer that needs post-children rendering.
 	/// </summary>
-	internal bool HasPanelLayer => PanelLayer != null;
+	internal bool HasPanelLayer => _panelLayerSize != null;
 }

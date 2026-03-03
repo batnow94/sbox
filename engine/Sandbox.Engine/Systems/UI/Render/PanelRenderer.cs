@@ -141,7 +141,7 @@ internal sealed partial class PanelRenderer
 
 	internal struct LayerEntry
 	{
-		public Texture Texture;
+		public string RTHandle;
 		public Matrix Matrix;
 	}
 
@@ -158,16 +158,16 @@ internal sealed partial class PanelRenderer
 		return false;
 	}
 
-	internal void PushLayer( Panel panel, Texture texture, Matrix mat )
+	internal void PushLayer( Panel panel, RenderTargetHandle handle, Matrix mat )
 	{
 		LayerStack ??= new Stack<LayerEntry>();
 
-		panel.CommandList.SetRenderTarget( RenderTarget.From( texture ) );
+		panel.CommandList.SetRenderTarget( handle );
 		panel.CommandList.Attributes.Set( "LayerMat", mat );
 		panel.CommandList.Attributes.SetCombo( "D_WORLDPANEL", 0 );
 		panel.CommandList.Clear( Color.Transparent );
 
-		LayerStack.Push( new LayerEntry { Texture = texture, Matrix = mat } );
+		LayerStack.Push( new LayerEntry { RTHandle = handle.Name, Matrix = mat } );
 	}
 
 	/// <summary>
@@ -180,7 +180,7 @@ internal sealed partial class PanelRenderer
 
 		if ( LayerStack.TryPeek( out var top ) )
 		{
-			commandList.SetRenderTarget( RenderTarget.From( top.Texture ) );
+			commandList.SetRenderTarget( new RenderTargetHandle { Name = top.RTHandle } );
 			commandList.Attributes.Set( "LayerMat", top.Matrix );
 			commandList.Attributes.SetCombo( "D_WORLDPANEL", 0 );
 		}
