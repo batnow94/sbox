@@ -163,7 +163,6 @@ internal partial class PanelRenderer
 
 	private void BuildCommandList( Panel panel, ref RenderState state )
 	{
-
 		panel.CommandList.Reset();
 
 		// Insert transform (TransformMat attribute)
@@ -185,6 +184,9 @@ internal partial class PanelRenderer
 
 		// Draw box shadows (inset, overlay)
 		BuildCommandList_BoxShadows( panel, ref state, inset: true, panel.CommandList );
+
+		// Draw outline (renders outside the border, does not affect layout)
+		BuildCommandList_Outline( panel, ref state );
 
 		panel.IsRenderDirty = false;
 	}
