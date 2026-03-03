@@ -418,7 +418,11 @@ public partial class Panel
 	[Hide]
 	public Vector2 ScrollSize { get; private set; }
 
-	bool IsDragScrolling;
+	/// <summary>
+	/// Is this panel currently being scrolled by dragging?
+	/// </summary>
+	[Hide]
+	public bool IsDragScrolling { get; private set; }
 
 	/// <summary>
 	/// Layout the children of this panel.
