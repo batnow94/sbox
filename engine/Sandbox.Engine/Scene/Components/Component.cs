@@ -162,10 +162,13 @@ public abstract partial class Component : IJsonConvert, IComponentLister, IValid
 		// These issues should be FIXED. Not HIDDEN. They will cause downstream issues.
 		//
 		{
-			var name = $"{GetType().Name} on ({GameObject?.Name ?? "null"})";
-
-			Assert.NotNull( Game.ActiveScene, $"Calling awake on {name} but active scene is null - not {GameObject.Scene}" );
-			Assert.AreEqual( GameObject.Scene, Game.ActiveScene, $"Calling awake on {name} but active scene is {Game.ActiveScene}, not {GameObject.Scene}" );
+			// Only pay to build the diagnostic strings when the assert would actually fire.
+			if ( Game.ActiveScene is null || GameObject.Scene != Game.ActiveScene )
+			{
+				var name = $"{GetType().Name} on ({GameObject?.Name ?? "null"})";
+				Assert.NotNull( Game.ActiveScene, $"Calling awake on {name} but active scene is null - not {GameObject.Scene}" );
+				Assert.AreEqual( GameObject.Scene, Game.ActiveScene, $"Calling awake on {name} but active scene is {Game.ActiveScene}, not {GameObject.Scene}" );
+			}
 		}
 
 		// Disable any interpolation during OnAwake. We might be created in a Fixed Update context.
