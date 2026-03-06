@@ -228,6 +228,19 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 				return false;
 			}
 
+			// Also upload a copy of the manifest indexed by the private commit hash.
+			// This lets CI running in the private repo resolve artifacts directly from
+			// its own git history without needing to know the public commit hash.
+			var privateCommitHash = GetPrivateCommitHash();
+			if ( !string.IsNullOrEmpty( privateCommitHash ) &&
+				!string.Equals( privateCommitHash, publicCommitHash, StringComparison.OrdinalIgnoreCase ) )
+			{
+				if ( !UploadManifest( privateCommitHash, uploadedArtifacts, remoteBase ) )
+				{
+					return false;
+				}
+			}
+
 			var manifestTotalBytes = CalculateArtifactTotalSize( uploadedArtifacts );
 			Log.Info( $"Total manifest artifact size: {Utility.FormatSize( manifestTotalBytes )}" );
 
@@ -477,6 +490,26 @@ internal class SyncPublicRepo( string name, bool dryRun = false ) : Step( name )
 		Log.Info( $"Public repository commit hash: {publicCommitHash}" );
 
 		return publicCommitHash;
+	}
+
+	/// <summary>
+	/// Returns the HEAD commit hash of the private (current) repository.
+	/// </summary>
+	private static string GetPrivateCommitHash()
+	{
+		string hash = null;
+		Utility.RunProcess( "git", "rev-parse HEAD", onDataReceived: ( _, e ) =>
+		{
+			if ( !string.IsNullOrWhiteSpace( e.Data ) )
+				hash ??= e.Data.Trim();
+		} );
+
+		if ( string.IsNullOrEmpty( hash ) )
+		{
+			Log.Warning( "Failed to resolve private commit hash; private-keyed manifest will not be uploaded." );
+		}
+
+		return hash;
 	}
 
 	private static HashSet<string> GetCurrentLfsFiles( string relativeRepoPath )
