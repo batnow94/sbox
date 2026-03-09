@@ -709,7 +709,7 @@ public partial class GameObject : IJsonConvert, IComponentLister, BytePack.ISeri
 	/// Get the GameObject after us,
 	/// </summary>
 	[ActionGraphInclude, Pure]
-	public GameObject GetNextSibling( bool enabledOnly, GameObjectFlags withoutFlags = GameObjectFlags.None )
+	public GameObject GetNextSibling( bool enabledOnly )
 	{
 		if ( Parent is null ) return null;
 		var myIndex = Parent.Children.IndexOf( this );
@@ -719,7 +719,6 @@ public partial class GameObject : IJsonConvert, IComponentLister, BytePack.ISeri
 		{
 			if ( Parent.Children[i] is null ) continue;
 			if ( enabledOnly && !Parent.Children[i].Enabled ) continue;
-			if ( withoutFlags != GameObjectFlags.None && (Parent.Children[i].Flags & withoutFlags) != 0 ) continue;
 			return Parent.Children[i];
 		}
 
