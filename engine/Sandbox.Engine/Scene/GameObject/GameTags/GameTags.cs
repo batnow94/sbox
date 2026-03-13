@@ -247,11 +247,14 @@ public class GameTags : ITagSet
 			return _lazyTokens;
 		}
 
-		_allTokens = new HashSet<uint>( parentTokens );
-		_allTokens.UnionWith( _lazyTokens );
+		// Build into a local first so _allTokens is never visible to other threads in a
+		// partially-constructed state (a single reference write is atomic on all CLR platforms).
+		var merged = new HashSet<uint>( parentTokens );
+		merged.UnionWith( _lazyTokens );
+		_allTokens = merged;
 
 		_tokensDirty = false;
-		return _allTokens;
+		return merged;
 	}
 
 	/// <summary>
