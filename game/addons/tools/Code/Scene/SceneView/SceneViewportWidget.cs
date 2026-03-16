@@ -741,8 +741,20 @@ public partial class SceneViewportWidget : Widget
 
 	void FrameOn( BBox target )
 	{
+		// If we're in game mode, eject first so we have a camera to frame with
+		if ( !_activeCamera.IsValid() )
+		{
+			SceneView.ToggleEject();
+		}
+
+		if ( !_activeCamera.IsValid() )
+			return;
+
+		// Make sure the camera transform is up to date
+		_activeCamera.WorldPosition = State.CameraPosition;
+		_activeCamera.WorldRotation = State.CameraRotation;
+
 		var distance = MathX.SphereCameraDistance( target.Size.Length, _activeCamera.FieldOfView ) * 1.0f;
-		var targetPos = target.Center + distance * _activeCamera.WorldRotation.Backward;
 
 		cameraTargetPosition = target.Center + distance * _activeCamera.WorldRotation.Backward;
 		cameraOrbitDistance = target.Center.Distance( cameraTargetPosition.Value );
