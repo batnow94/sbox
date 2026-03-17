@@ -48,11 +48,38 @@ public class VariantControlWidget : ControlWidget
 		{
 			Layout.Add( new Label( "No type selected" ) { ContentMargins = new Sandbox.UI.Margin( 8, 4 ) } );
 		}
-
-		Layout.Add( new IconButton( "arrow_drop_down" ) { Background = Color.Transparent, OnClick = OpenMenu } );
 	}
 
-	void OpenMenu()
+	public override void OnLabelContextMenu( ContextMenu menu )
+	{
+		if ( SerializedProperty.TryGetAttribute<TypeHintAttribute>( out var typeHint ) )
+		{
+			var variant = SerializedProperty.GetValue<Variant>();
+			var t = variant.Type;
+			bool active = typeHint.HintedType == t;
+
+			var o = menu.AddOption( $"{t.Name}", "type_specimen", () =>
+			{
+				if ( active ) return;
+				SerializedProperty.SetValue( new Variant( null, t ) );
+				RebuildUI();
+			} );
+
+			o.Checkable = true;
+			o.Checked = active;
+		}
+
+		{
+			var o = menu.AddOption( "Select Type...", "post_add", OpenMenu );
+
+			o.Checkable = true;
+			o.Checked = false;
+		}
+
+		menu.AddSeparator();
+	}
+
+	public void OpenMenu()
 	{
 		var popup = new TypeDropdownWidget( this );
 		popup.OnChanged = ( t ) =>
@@ -76,6 +103,17 @@ public class VariantControlWidget : ControlWidget
 
 			RebuildUI();
 		};
+		popup.OpenBelowCursor( 5 );
+	}
+
+	/// <summary>
+	/// Displays a type selection popup below the cursor, allowing the user to choose a type and notifying when the
+	/// selection changes.
+	/// </summary>
+	public static void OpenTypeSelector( Widget parent, Type current, Action<Type> onChanged )
+	{
+		var popup = new TypeDropdownWidget( parent );
+		popup.OnChanged = onChanged;
 		popup.OpenBelowCursor( 5 );
 	}
 }
