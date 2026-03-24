@@ -558,7 +558,38 @@
                   "Evaluation": "Seed",
                   "Constants": "2,4,0,0"
                 },
-                "LocalSpace": 0,
+                "LocalSpace": {
+                  "Type": "Curve",
+                  "Evaluation": "Life",
+                  "CurveA": {
+                    "rangex": "0.5066651,1",
+                    "frames": [
+                      {
+                        "x": 0,
+                        "y": 1,
+                        "in": 3.4257505,
+                        "out": -3.4257505,
+                        "mode": "Mirrored"
+                      },
+                      {
+                        "x": 1,
+                        "y": 0,
+                        "in": 0.312088,
+                        "out": -0.312088,
+                        "mode": "Mirrored"
+                      }
+                    ]
+                  },
+                  "CurveB": [
+                    {
+                      "x": 0.5,
+                      "y": 0.5,
+                      "in": 0,
+                      "out": 0,
+                      "mode": "Mirrored"
+                    }
+                  ]
+                },
                 "MaxParticles": 100,
                 "OnComponentDestroy": null,
                 "OnComponentDisabled": null,
