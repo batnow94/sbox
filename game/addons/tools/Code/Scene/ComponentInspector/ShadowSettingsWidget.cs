@@ -1,12 +1,7 @@
 ﻿namespace Editor;
 
-using Editor.SoundEditor;
-using Sandbox.Engine;
-using Sandbox.Rendering;
-using static Sandbox.DirectionalLight;
-
 [CustomEditor( typeof( DirectionalLight.CascadeVisualizer ) )]
-public class ShadowCascadVisualizerControlWidget : ControlWidget
+public class ShadowCascadeVisualizerControlWidget : ControlWidget
 {
 	public override bool IncludeLabel => false;
 
@@ -18,7 +13,7 @@ public class ShadowCascadVisualizerControlWidget : ControlWidget
 		new Color(0.6f, 0.6f, 0.5f, 1.0f),
 	};
 
-	public ShadowCascadVisualizerControlWidget( SerializedProperty property ) : base( property )
+	public ShadowCascadeVisualizerControlWidget( SerializedProperty property ) : base( property )
 	{
 		Layout = Layout.Column();
 
@@ -28,17 +23,36 @@ public class ShadowCascadVisualizerControlWidget : ControlWidget
 		a.Update += Update;
 	}
 
+	static float[] CalculateSplitDistances( int numCascades, float near, float far, float lambda = 0.91f )
+	{
+		float[] splits = new float[numCascades];
+
+		float subNear = 1.0f;
+		float subRange = far - subNear;
+		float subRatio = far / MathF.Max( subNear, 1.0f );
+
+		for ( int i = 0; i < numCascades; i++ )
+		{
+			float p = (i + 1f) / numCascades;
+			float logSplit = subNear * MathF.Pow( subRatio, p );
+			float uniformSplit = subNear + subRange * p;
+			float d = lambda * (logSplit - uniformSplit) + uniformSplit;
+			splits[i] = Math.Clamp( d / far, 0.0f, 1.0f );
+		}
+
+		return splits;
+	}
+
 	protected override void OnPaint()
 	{
 		var cascadeCount = SerializedProperty.Parent.GetProperty( "ShadowCascadeCount" ).GetValue<int>();
 		var splitRatio = SerializedProperty.Parent.GetProperty( "ShadowCascadeSplitRatio" ).GetValue<float>();
-		var firstCascadeSize = SerializedProperty.Parent.GetProperty( "ShadowFirstCascadeSize" ).GetValue<float>();
 		var far = 15000.0f;
 
-		var splits = new float[4] { 0.1f, 0.2f, 0.3f, 0.4f }; // ShadowMapper.CalculateSplitDistances( cascadeCount, 1.0f, far, firstCascadeSize, splitRatio );
+		var splits = CalculateSplitDistances( cascadeCount, 1.0f, far, splitRatio );
 
 		var width = LocalRect.Width / cascadeCount;
-		var hieght = LocalRect.Height;
+		var height = LocalRect.Height;
 
 		float x = 0;
 		float prevSplit = 0;
@@ -47,7 +61,7 @@ public class ShadowCascadVisualizerControlWidget : ControlWidget
 			var split = splits[i];
 
 			var w = (split - prevSplit) * LocalRect.Width;
-			var rect = new Rect( x, 0, w, hieght );
+			var rect = new Rect( x, 0, w, height );
 
 			Paint.SetPen( Theme.Border );
 			Paint.SetBrush( CascadeColors[i] );
