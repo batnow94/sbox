@@ -1087,6 +1087,71 @@ public partial class Instances
 			"Outermost patch should still contain overrides after reverting a nested root" );
 	}
 
+	/// <summary>
+	/// Regression test: ConvertGameObjectToPrefab on a GameObject that IsPrefabInstance must
+	/// preserve the original world transform. Previously Clone() created the object at world
+	/// origin and the subsequent AddSibling / SetParent call baked that zeroed world-origin
+	/// as the local transform relative to the parent, placing it far from the intended position.
+	/// </summary>
+	[TestMethod]
+	public void ConvertGameObjectToPrefab_WhenIsPrefabInstance_PreservesWorldTransform()
+	{
+		var innerPrefabLocation = "__nestedPrefab.prefab";
+		var outerPrefabLocation = "___convert_outer.prefab";
+		var saveLocation = "___converted.prefab";
+
+		using var innerPrefab = Sandbox.SceneTests.Helpers.RegisterPrefabFromJson( innerPrefabLocation, _basicPrefabSource );
+		using var outerPrefab = Sandbox.SceneTests.Helpers.RegisterPrefabFromJson( outerPrefabLocation, _outerPrefabWithNestedPrefabSource );
+
+		var outerPrefabFile = ResourceLibrary.Get<PrefabFile>( outerPrefabLocation );
+		var outerPrefabScene = SceneUtility.GetPrefabScene( outerPrefabFile );
+
+		var scene = new Scene();
+		using var sceneScope = scene.Push();
+
+		// Spawn the outer prefab at a non-trivial world position so that the parent
+		// and the nested child both have well-defined non-zero transforms.
+		var expectedWorldPosition = new Vector3( 100f, 200f, 300f );
+		var outerInstance = outerPrefabScene.Clone( expectedWorldPosition );
+		Assert.IsTrue( outerInstance.IsPrefabInstanceRoot, "Outer instance should be a prefab instance root" );
+
+		// The nested child is the first (and only) child — it is a prefab instance.
+		Assert.AreEqual( 1, outerInstance.Children.Count );
+		var nestedInstance = outerInstance.Children[0];
+		Assert.IsTrue( nestedInstance.IsPrefabInstance, "Nested child should be a prefab instance" );
+
+		// Give the nested instance a distinct world position so we can verify it is kept.
+		var nestedWorldPosition = new Vector3( 150f, 250f, 350f );
+		nestedInstance.WorldPosition = nestedWorldPosition;
+
+		// Act: convert the *nested* prefab instance to a new prefab.
+		EditorUtility.Prefabs.ConvertGameObjectToPrefab( nestedInstance, saveLocation, true );
+
+		// Flush deferred destructions so the old object is removed from the hierarchy.
+		scene.GameTick();
+
+		var newPrefab = ResourceLibrary.Get<PrefabFile>( saveLocation );
+
+		try
+		{
+			// After conversion the original nestedInstance is destroyed and replaced by a new
+			// GameObject.  We find it as the first child of the outer instance.
+			Assert.AreEqual( 1, outerInstance.Children.Count );
+			var convertedGo = outerInstance.Children[0];
+			Assert.IsTrue( convertedGo.IsPrefabInstanceRoot, "Converted object should now be a prefab instance root" );
+
+			// The key assertion: world position must be preserved, not reset to origin.
+			var actualWorldPos = convertedGo.WorldPosition;
+			Assert.AreEqual( nestedWorldPosition.x, actualWorldPos.x, 0.01f, "World X must be preserved after ConvertGameObjectToPrefab" );
+			Assert.AreEqual( nestedWorldPosition.y, actualWorldPos.y, 0.01f, "World Y must be preserved after ConvertGameObjectToPrefab" );
+			Assert.AreEqual( nestedWorldPosition.z, actualWorldPos.z, 0.01f, "World Z must be preserved after ConvertGameObjectToPrefab" );
+		}
+		finally
+		{
+			if ( newPrefab is not null ) Game.Resources.Unregister( newPrefab );
+		}
+	}
+
 	// Innermost prefab definition
 	static readonly string _nestedNestedPrefabSource = """"
 	{

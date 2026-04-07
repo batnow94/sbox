@@ -409,6 +409,7 @@ public static partial class EditorUtility
 			{
 				var oldGo = go;
 				var oldGoSibling = go.GetNextSibling( false );
+				var originalWorldTransform = go.WorldTransform;
 				go = go.Clone();
 				if ( oldGoSibling != null )
 				{
@@ -418,9 +419,10 @@ public static partial class EditorUtility
 				{
 					go.Parent = oldGo.Parent;
 				}
+				// Restore world position after reparenting since Clone starts at origin
+				go.WorldTransform = originalWorldTransform;
 				oldGo.OutermostPrefabInstanceRoot.PrefabInstance.RemoveHierarchyFromLookup( oldGo );
 				oldGo.Destroy();
-
 			}
 
 			var (prefabFile, instanceToPrefabGuid) = WriteGameObjectToPrefab( go, saveLocation, skipDiskWrite );
