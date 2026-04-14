@@ -44,11 +44,32 @@ namespace Sandbox.UI
 		/// <summary>
 		/// The Scene this panel renders.
 		/// </summary>
-		public Scene RenderScene { get; set; }
+		public Scene RenderScene
+		{
+			get => _renderScene;
+			set
+			{
+				if ( ReferenceEquals( _renderScene, value ) )
+					return;
+
+				// Clean up the existing scene if we own it
+				if ( _ownsScene && _renderScene.IsValid() )
+				{
+					_renderScene.Destroy();
+				}
+
+				_renderScene = value;
+				_ownsScene = false;
+			}
+		}
+
+		private Scene _renderScene;
+		private bool _ownsScene;
 
 		public ScenePanel()
 		{
-			RenderScene = new() { WantsSystemScene = false };
+			_renderScene = new() { WantsSystemScene = false };
+			_ownsScene = true;
 
 			Camera.FieldOfView = 60;
 			Camera.BackgroundColor = Color.Transparent;
@@ -131,8 +152,13 @@ namespace Sandbox.UI
 			RenderTexture?.Dispose();
 			RenderTexture = null;
 
-			RenderScene?.Destroy();
-			RenderScene = null;
+			// Only destroy the scene if we created it ourselves, if the user created it themselves then they should be the one destroying it
+			if ( _ownsScene )
+			{
+				_renderScene?.Destroy();
+			}
+
+			_renderScene = null;
 
 			base.Delete( immediate );
 		}
